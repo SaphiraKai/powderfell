@@ -7,5 +7,13 @@ name = "pf-engine"
 version = "0.1.0"
 
 [[package]]
+name = "pf-engine"
+version = "0.1.0"
+source = "git+https://github.com/SaphiraKai/powderfell#8e0c53bd94dab1c778874bf5bb38d8f4de856d0b"
+
+[[package]]
 name = "pf-prototype"
 version = "0.1.0"
+dependencies = [
+ "pf-engine 0.1.0 (git+https://github.com/SaphiraKai/powderfell)",
+]
