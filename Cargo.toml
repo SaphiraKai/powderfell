@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "pf-engine", "pf-prototype",
+]
+
