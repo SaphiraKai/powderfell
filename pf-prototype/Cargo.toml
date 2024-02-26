@@ -6,7 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bevy = "0.13.0"
 color-eyre = "0.6.2"
+image = "0.24.9"
 pf-engine = { path = "../pf-engine" }
 rand = "0.8.5"
 show-image = "0.13.1"

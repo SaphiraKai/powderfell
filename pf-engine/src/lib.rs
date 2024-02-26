@@ -1,51 +1,71 @@
-use image::GrayImage;
+use std::sync::{Arc, Mutex, OnceLock};
 
-#[derive(Clone, Copy, Debug)]
+use bevy::asset::Handle;
+use bevy::ecs::system::Resource;
+use bevy::render::texture::Image;
+use bevy::utils::info;
+use element::Element;
+use image::{Rgba, RgbaImage};
+
+pub mod element;
+pub mod util;
+
+#[derive(Clone, Debug)]
 pub struct Particle {
-    element: u8,
+    element: Arc<dyn Element>,
+    color: Rgba<u8>,
+    id: u64,
     x: usize,
     y: usize,
 }
 
+impl PartialEq for Particle {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+static PARTICLE_ID: OnceLock<Mutex<u64>> = OnceLock::new();
+
 impl Particle {
     fn step(&mut self, playfield: &mut Playfield) {
-        if self.element == 0 {
-            return;
-        }
-
-        if self.y + 1 < playfield.height as usize {
-            let down = playfield.get(self.x, self.y + 1);
-
-            if down.is_none() {
-                self.move_to(self.x, self.y + 1, playfield);
-            }
-        }
+        self.element.clone().step(self, playfield);
     }
 
     pub fn update(&self, playfield: &mut Playfield) {
-        self.despawn(playfield);
-        playfield.spawn(self.element, self.x, self.y);
+        playfield.despawn(self.x, self.y);
+        playfield.spawn(self.element.clone(), self.x, self.y);
     }
 
-    pub fn new(element: u8, x: usize, y: usize) -> Particle {
-        Particle { element, x, y }
+    pub fn new(element: Arc<dyn Element>, x: usize, y: usize) -> Particle {
+        let mut id_generator = PARTICLE_ID.get_or_init(|| Mutex::new(0)).lock().unwrap();
+
+        let id = *id_generator;
+        *id_generator += 1;
+
+        Particle {
+            element: element.clone(),
+            color: element.color(),
+            id,
+            x,
+            y,
+        }
     }
 
-    fn despawn(&self, playfield: &mut Playfield) {
-        playfield.spawn(0, self.x, self.y);
-    }
+    fn move_to(&self, x: usize, y: usize, playfield: &mut Playfield) -> bool {
+        if playfield.get(self.x, self.y) == Some(self) {
+            playfield.despawn(self.x, self.y);
+        }
 
-    fn move_to(&self, x: usize, y: usize, playfield: &mut Playfield) {
-        self.despawn(playfield);
-        playfield.spawn(self.element, x, y);
+        playfield.spawn(self.element.clone(), x, y)
     }
 
     fn swap_with(&self, other: &Particle, playfield: &mut Playfield) {
-        self.despawn(playfield);
-        other.despawn(playfield);
+        playfield.despawn(self.x, self.y);
+        playfield.despawn(other.x, other.y);
 
-        playfield.spawn(self.element, other.x, other.y);
-        playfield.spawn(other.element, self.x, self.y);
+        playfield.spawn(self.element.clone(), other.x, other.y);
+        playfield.spawn(other.element.clone(), self.x, self.y);
     }
 }
 
@@ -83,26 +103,37 @@ impl Playfield {
         self.data.get_mut(y)?.get_mut(x)?.as_mut()
     }
 
-    pub fn spawn(&mut self, element: u8, x: usize, y: usize) {
+    pub fn spawn(&mut self, element: Arc<dyn Element>, x: usize, y: usize) -> bool {
+        let exists = self.data[y][x].is_some();
+
         self.data[y][x] = Some(Particle::new(element, x, y));
+
+        exists
     }
 
-    pub fn as_image(&self) -> GrayImage {
-        GrayImage::from_vec(
+    pub fn despawn(&mut self, x: usize, y: usize) {
+        self.data[y][x] = None;
+    }
+
+    pub fn as_image(&self) -> RgbaImage {
+        RgbaImage::from_vec(
             self.width,
             self.height,
             self.data
                 .clone()
                 .into_iter()
                 .flatten()
-                .map(|o| o.map(|p| p.element).unwrap_or(0))
+                .flat_map(|o| o.map(|p| p.color.0).unwrap_or([0; 4]))
                 .collect(),
         )
         .unwrap()
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Resource)]
+pub struct SimulationBufferHandle(pub Handle<Image>);
+
+#[derive(Clone, Debug, Resource)]
 pub struct Simulation {
     playfield: Playfield,
 }
@@ -130,7 +161,7 @@ impl Simulation {
                     (-(y as i32) + self.playfield.height as i32) as usize - 1,
                 );
 
-                let particle = self.playfield.get(x, y).copied();
+                let particle = self.playfield.get(x, y).cloned();
 
                 if let Some(mut p) = particle {
                     p.step(&mut self.playfield);
