@@ -60,12 +60,11 @@ impl Particle {
         playfield.spawn(self.element.clone(), x, y)
     }
 
-    fn swap_with(&self, other: &Particle, playfield: &mut Playfield) {
-        playfield.despawn(self.x, self.y);
-        playfield.despawn(other.x, other.y);
+    fn swap_with(&self, target: (usize, usize), playfield: &mut Playfield) {
+        let target_particle = playfield.get(target.0, target.1).cloned();
 
-        playfield.spawn(self.element.clone(), other.x, other.y);
-        playfield.spawn(other.element.clone(), self.x, self.y);
+        playfield.data[target.1][target.0] = Some(self).cloned();
+        playfield.data[self.y][self.x] = target_particle;
     }
 }
 
