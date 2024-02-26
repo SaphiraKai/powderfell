@@ -61,7 +61,7 @@ fn setup(mut commands: Commands, mut textures: ResMut<Assets<Image>>) {
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
-        vec![255; (WIDTH * HEIGHT) as usize],
+        vec![],
         TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::all(),
     );
