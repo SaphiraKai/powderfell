@@ -8,7 +8,7 @@ pub fn checked_move(p: &mut Particle, xoff: i32, yoff: i32, f: &mut Playfield) -
     let (x1, y1) = (x0 + xoff, y0 + yoff);
 
     let mut prev = (p.x, p.y);
-    for (x, y) in Bresenham::new((x0, y0), (x1, y1)).skip(1) {
+    for (x, y) in Bresenham::new((x0, y0), (x1, y1)).skip(1).step_by(2) {
         let target = f.get(x as usize, y as usize).cloned();
         if x >= w || x < 0 || y >= h || y < 0 || target.is_some() {
             if target
